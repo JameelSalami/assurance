@@ -1,7 +1,6 @@
 {
   "name": "@durable-systems/assurance",
   "version": "0.1.0",
-  "private": true,
   "license": "Apache-2.0",
   "type": "module",
   "description": "Domain-neutral executable assurance gates over project-owned contracts, laws, fault models, variants, and verification coverage",

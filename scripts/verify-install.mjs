@@ -20,15 +20,16 @@ const isAssurance = info.name === assurance;
 if (isAssurance) {
   const lock = JSON.parse(readFileSync(join(root, "package-lock.json"), "utf8"));
   const key = "node_modules/" + contract;
-  const bootstrap = "file:vendor/durable-systems-contract-0.1.0.tgz";
-  const archive = join(root, "vendor", "durable-systems-contract-0.1.0.tgz");
-  const integrity = "sha512-" + createHash("sha512").update(readFileSync(archive)).digest("base64");
+  const registryContract = lock.packages?.[key];
   if (info.devDependencies?.[contract] !== "0.1.0" ||
       info.peerDependencies?.[contract] !== "0.1.0" ||
       lock.packages?.[""]?.devDependencies?.[contract] !== "0.1.0" ||
-      lock.packages?.[key]?.resolved !== bootstrap ||
-      lock.packages?.[key]?.integrity !== integrity) {
-    throw Error("registry devDependency and offline release bootstrap lockfile are inconsistent");
+      typeof registryContract?.resolved !== "string" ||
+      !registryContract.resolved.startsWith(
+        "https://registry.npmjs.org/@durable-systems/contract/-/") ||
+      typeof registryContract.integrity !== "string" ||
+      !/^sha512-[A-Za-z0-9+/=]+$/.test(registryContract.integrity)) {
+    throw Error("Contract dependency must resolve to integrity-pinned public npm registry package");
   }
 }
 const scratch = mkdtempSync(join(tmpdir(), "independent-npm-consumer-"));
@@ -170,17 +171,16 @@ try {
   if (!packedName?.endsWith(".tgz")) throw Error("npm pack did not return tarball");
   const candidateTar = join(scratch, basename(packedName));
   assertPack(candidateTar, info.name);
-  const contractTar = isAssurance
-    ? join(root, "vendor", "durable-systems-contract-0.1.0.tgz")
+  const contractToInstall = isAssurance
+    ? "@durable-systems/contract@0.1.0"
     : candidateTar;
-  if (isAssurance) assertPack(contractTar, contract);
   const consumer = join(scratch, "consumer");
   mkdirSync(consumer);
   writeFileSync(join(consumer, "package.json"), JSON.stringify({
     name: "unrelated-third-party-consumer", version: "1.0.0",
     private: true, type: "module",
   }, null, 2) + "\n");
-  const toInstall = isAssurance ? [contractTar, candidateTar] : [candidateTar];
+  const toInstall = isAssurance ? [contractToInstall, candidateTar] : [candidateTar];
   run("npm", [
     "install", "--ignore-scripts", "--no-audit", "--no-fund",
     "--save-exact", ...toInstall, "typescript@5.9.3",

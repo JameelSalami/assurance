@@ -9,12 +9,11 @@ semantics.
 
 ## Installation and dependency contract
 
-Assurance is ESM-only and requires Node.js 20.19+. Install Contract
-**0.1.0** alongside Assurance **0.1.0**. The published package identities are
-planned as `@durable-systems/contract` and `@durable-systems/assurance`; both remain
-unpublished until repository and npm namespace clearance is complete.
+Assurance is ESM-only and requires Node.js 20.19+. Install the public
+`@durable-systems/contract@0.1.0` package alongside
+`@durable-systems/assurance@0.1.0`.
 
-After publication:
+Install from npm:
 
 ```sh
 npm install @durable-systems/contract@0.1.0 @durable-systems/assurance@0.1.0
@@ -24,21 +23,10 @@ Assurance declares **`@durable-systems/contract@0.1.0` as a required peer**
 and pins its **development dependency to the exact registry version
 `0.1.0`** in `package.json`. Neither is a sibling-path dependency.
 
-**Prepublication lockfile bootstrap:** Contract is not yet present in the
-public npm registry. Until its first publication, this repository keeps an
-integrity-checked `vendor/durable-systems-contract-0.1.0.tgz` and the checked-in
-`package-lock.json` intentionally resolves that version from the local archive.
-Consequently, clean `npm ci`, GitHub CI and lifecycle `npm pack` work from
-a standalone checkout **without claiming the dependency came from npm**.
-The vendor tarball never enters Assurance's distributed tarball.
-
-All four independent GitHub repositories may be pushed together. npm
-publication still has an install-time order: publish Contract before
-Assurance. Once Contract `0.1.0` is available, regenerate the Assurance
-lockfile against **the actual published registry package**, remove the now
-unneeded vendor archive, and repeat the full source, CI and tarball-consumer
-verification. The final release archive SHA-256 will change when
-`private: true` is removed.
+The checked-in lockfile resolves Contract **0.1.0 directly from the npm
+registry**, with the published package's SHA-512 integrity. No development
+vendor bootstrap tarball or sibling checkout is required. Clean `npm ci`,
+GitHub CI and `npm pack` verify against the registry package.
 
 From this independent source repository (without a neighboring checkout):
 
@@ -48,9 +36,10 @@ npm run verify             # typecheck, tests, production build
 npm run verify:install     # lifecycle pack + unrelated two-tarball consumer
 ```
 
-For a prerelease consumer, pack Contract separately and install its tarball
-**together with** the Assurance tarball. Both tarballs expose JavaScript and
-TypeScript declarations from their package-root exports. Neither a sibling checkout nor a custom module search path is needed.
+For a standalone consumer, install the published Contract package
+alongside the Assurance tarball, or install both from npm.
+Both expose JavaScript and TypeScript declarations without a sibling
+source checkout or custom module search path.
 
 ## Minimal JavaScript example
 
@@ -181,10 +170,9 @@ source code, existing integrations, certification or external endorsement:
 
 Assurance requires the **separately installed**
 `@durable-systems/contract@0.1.0` (Apache-2.0) peer; it does not ship a
-copy of Contract in its npm tarball. The source checkout retains an
-integrity-pinned development bootstrap archive until Contract is published.
-The upstream source rights and any required notice retention have not been
-independently cleared by these informational references.
+copy of Contract in its npm tarball. Its source checkout installs the
+published Contract package from the registry with pinned integrity. Separate
+copyright attribution and NOTICE obligations remain applicable.
 
 ## Real Stryker mutation testing integration
 
