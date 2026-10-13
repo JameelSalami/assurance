@@ -44,7 +44,7 @@ From this independent source repository (without a neighboring checkout):
 
 ```sh
 npm ci
-npm run verify             # typecheck, 14 tests, production build
+npm run verify             # typecheck, tests, production build
 npm run verify:install     # lifecycle pack + unrelated two-tarball consumer
 ```
 
@@ -108,11 +108,25 @@ types listed in `src/index.ts`.
 
 - **G-REP:** mapped representations must exist, be current, and be ready.
 - **G-LAW:** declared laws need owned, concrete fault-model killers and verification.
-- **G-VARIANT:** every required admitted non-equivalent variant must be recorded
-  as independently killed with a named killer. Survival, skips, duplicates,
-  stale or missing campaign entries never count as success.
+- **G-VARIANT:** every required admitted non-equivalent variant must have a
+  named killer belonging to the **frozen declared test suites**, and an
+  independently checked execution receipt bound to the exact variant plan,
+  campaign, candidate, oracle, runner and execution. Missing receipts or a
+  missing trusted verifier block acceptance. Invented killer IDs, unexpected
+  evidence, survivors, duplicates or stale campaigns fail closed. Calling
+  \`gateVariant(plan, campaign)\` without external verification never counts
+  a reported kill as independently proven.
 - **G-COVERAGE:** every owned stage needs a closed state and identified evidence.
   Campaign and coverage receipts bind the originating contract/request.
+
+A caller must supply \`gateVariant(plan, campaign, {
+  receipts, trustedVerifier
+})\` for positive G-VARIANT results. The verifier must independently
+cross-check the named suite/test exists and killed the variant in a real
+runner output, and that the runner/output hashes, candidate, oracle and
+campaign identities match. A callback returning \`true\` unconditionally
+is **not** a trusted verifier. The library does not invoke Stryker,
+authenticate a signature, or turn a self-reported hash into evidence.
 
 These gates classify *supplied evidence*, not independent proof that tests
 were run. They do not execute mutations, deploy code, discover trusted

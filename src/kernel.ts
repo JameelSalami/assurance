@@ -10,6 +10,8 @@ import type {
   MutationBinding,
   StageBinding,
   VariantCampaignResult,
+  VariantEvidenceVerification,
+  VariantKillEvidenceReceipt,
   VariantPlan,
   VariantResult,
 } from "./types.js";
@@ -166,6 +168,14 @@ export function createAssuranceKernel<const S extends AssuranceSchemas>(options:
     readonly candidateDigest: string;
     readonly changedFiles: readonly string[];
   }): VariantPlan<S["variantPlan"]> {
+    const suitesByRow = new Map(
+      input.contract.semantic.basisRows.map((row) => [row.kind + ":" + row.id, row.suites]),
+    );
+    const allowedKillers = (mutationId: string): string[] =>
+      [...new Set(input.contract.semantic.laws
+        .filter((law) => law.mutationIds.includes(mutationId))
+        .flatMap((law) => law.verificationRows)
+        .flatMap((rowId) => suitesByRow.get(rowId) ?? []))].sort();
     const oracleDigest = domainDigest("variant-oracle.v1", {
       builderContractDigest: input.contract.digest,
       laws: input.contract.semantic.laws.map((law) => ({
@@ -183,6 +193,7 @@ export function createAssuranceKernel<const S extends AssuranceSchemas>(options:
             operator: mutation.operator,
             sourceId: sid(mutation.source),
             oracleDigest,
+            allowedKillerIds: Object.freeze(allowedKillers(mutation.id)),
           }));
 
     const body = {
@@ -223,11 +234,18 @@ export function createAssuranceKernel<const S extends AssuranceSchemas>(options:
     return { ...body, digest: domainDigest("variant-campaign-result.v1", body) };
   }
 
+  /**
+   * G-VARIANT is an evidence-admission gate, not a mutation test runner.
+   * A campaign claiming killed tests cannot pass without the caller providing
+   * independently checked evidence for each named and declared killer.
+   */
   function gateVariant(
     plan: VariantPlan<S["variantPlan"]>,
     campaign: VariantCampaignResult<S["variantCampaignResult"]>,
+    verification?: VariantEvidenceVerification,
   ): GateDisposition {
     const blockers: string[] = [];
+    let missingTrust = false;
     const expectedPlanDigest = domainDigest("variant-plan.v1", {
       schema: plan.schema,
       builderContractDigest: plan.builderContractDigest,
@@ -254,6 +272,7 @@ export function createAssuranceKernel<const S extends AssuranceSchemas>(options:
     const variants = new Map(plan.variants.map((variant) => [variant.id, variant]));
     if (variants.size !== plan.variants.length) blockers.push("duplicate-planned-variant");
     const seen = new Set<string>();
+    const admittedKillers = new Set<string>();
     for (const result of campaign.results) {
       if (seen.has(result.variantId)) blockers.push(result.variantId + ":duplicate-result");
       seen.add(result.variantId);
@@ -268,17 +287,108 @@ export function createAssuranceKernel<const S extends AssuranceSchemas>(options:
       if (result.disposition !== "killed") {
         blockers.push(result.variantId + ":" + result.disposition);
       } else if (
+        !Array.isArray(result.killerIds) ||
         result.killerIds.length === 0 ||
-        result.killerIds.some((id) => id.trim() === "") ||
+        result.killerIds.some((id) => typeof id !== "string" || id.trim() === "") ||
         new Set(result.killerIds).size !== result.killerIds.length
       ) {
         blockers.push(result.variantId + ":invalid-killer-evidence");
+      } else {
+        if (!Array.isArray(variant.allowedKillerIds) ||
+            variant.allowedKillerIds.length === 0) {
+          blockers.push(result.variantId + ":no-declared-killer-suites");
+          continue;
+        }
+        for (const killerId of result.killerIds) {
+          if (!variant.allowedKillerIds.includes(killerId)) {
+            blockers.push(result.variantId + ":undeclared-killer:" + killerId);
+          } else {
+            admittedKillers.add(JSON.stringify([result.variantId, killerId]));
+          }
+        }
       }
     }
     for (const variant of plan.variants) {
       if (!seen.has(variant.id)) blockers.push(variant.id + ":missing-result");
     }
-    const status = blockers.length === 0 ? ("passed" as const) : ("failed" as const);
+
+    // Check the complete receipt set before interpreting any trusted callback.
+    const rawReceipts: unknown = verification?.receipts;
+    const trustedVerifier = verification?.trustedVerifier;
+    if (typeof trustedVerifier !== "function") {
+      blockers.push("missing-independent-variant-verifier");
+      missingTrust = true;
+    }
+    if (!Array.isArray(rawReceipts)) {
+      blockers.push("missing-variant-execution-receipts");
+      missingTrust = true;
+    }
+    const validKeys = [
+      "authority", "candidateDigest", "campaignDigest", "executionDigest",
+      "killerId", "oracleDigest", "planDigest", "runnerDigest", "schema", "variantId",
+    ].sort().join(",");
+    const sha = /^sha256:[0-9a-f]{64}$/;
+    const received = new Set<string>();
+    for (const supplied of Array.isArray(rawReceipts) ? rawReceipts : []) {
+      const receipt = supplied as Partial<VariantKillEvidenceReceipt> | null;
+      if (
+        receipt === null || typeof receipt !== "object" || Array.isArray(receipt) ||
+        Object.keys(receipt).sort().join(",") !== validKeys ||
+        receipt.schema !== "assurance.variant-kill-evidence/v1" ||
+        receipt.authority !== "none" ||
+        typeof receipt.variantId !== "string" ||
+        typeof receipt.killerId !== "string" ||
+        typeof receipt.candidateDigest !== "string" ||
+        typeof receipt.planDigest !== "string" ||
+        typeof receipt.campaignDigest !== "string" ||
+        typeof receipt.oracleDigest !== "string" ||
+        typeof receipt.runnerDigest !== "string" || !sha.test(receipt.runnerDigest) ||
+        typeof receipt.executionDigest !== "string" || !sha.test(receipt.executionDigest)
+      ) {
+        blockers.push("invalid-variant-execution-receipt");
+        continue;
+      }
+      const key = JSON.stringify([receipt.variantId, receipt.killerId]);
+      if (received.has(key)) blockers.push("duplicate-variant-execution-receipt:" + key);
+      received.add(key);
+      const variant = variants.get(receipt.variantId);
+      if (!admittedKillers.has(key) || variant === undefined) {
+        blockers.push("unexpected-variant-execution-receipt:" + key);
+        continue;
+      }
+      if (
+        receipt.planDigest !== plan.digest ||
+        receipt.campaignDigest !== campaign.digest ||
+        receipt.candidateDigest !== plan.candidateDigest ||
+        receipt.oracleDigest !== variant.oracleDigest
+      ) {
+        blockers.push("stale-variant-execution-receipt:" + key);
+        continue;
+      }
+      let trusted = false;
+      try {
+        trusted = typeof trustedVerifier === "function" &&
+          trustedVerifier(receipt as VariantKillEvidenceReceipt) === true;
+      } catch {
+        trusted = false;
+      }
+      if (!trusted) {
+        blockers.push("untrusted-variant-execution-receipt:" + key);
+        missingTrust = true;
+      }
+    }
+    for (const key of admittedKillers) {
+      if (!received.has(key)) {
+        blockers.push("missing-variant-execution-receipt:" + key);
+        missingTrust = true;
+      }
+    }
+    const status = blockers.length === 0
+      ? ("passed" as const)
+      : missingTrust && blockers.every((item) =>
+          item.startsWith("missing-") || item.startsWith("untrusted-"))
+        ? ("blocked" as const)
+        : ("failed" as const);
     const body = {
       gate: "G-VARIANT" as const,
       status,

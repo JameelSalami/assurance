@@ -120,6 +120,8 @@ export interface VariantDescriptor {
   readonly operator: string;
   readonly sourceId: string;
   readonly oracleDigest: string;
+  /** Frozen suite IDs derived from the mutation's declared verification rows. */
+  readonly allowedKillerIds: readonly string[];
 }
 
 export interface VariantPlan<S extends string = string> {
@@ -152,6 +154,33 @@ export interface VariantCampaignResult<S extends string = string> {
   readonly results: readonly VariantResult[];
   readonly digest: string;
   readonly authority: "none";
+}
+
+/**
+ * Externally produced evidence of a specific test killing a specific variant.
+ * This is a reference, NOT a cryptographic attestation. The host verifier
+ * must check it against real runner logs, test inventory and trusted origin.
+ */
+export interface VariantKillEvidenceReceipt {
+  readonly schema: "assurance.variant-kill-evidence/v1";
+  readonly planDigest: string;
+  readonly campaignDigest: string;
+  readonly candidateDigest: string;
+  readonly variantId: string;
+  readonly killerId: string;
+  readonly oracleDigest: string;
+  readonly runnerDigest: string;
+  readonly executionDigest: string;
+  readonly authority: "none";
+}
+
+export interface VariantEvidenceVerification {
+  readonly receipts: readonly VariantKillEvidenceReceipt[];
+  /**
+   * Independently verify origin, runner execution, test existence and kill
+   * semantics. Never implement by blindly returning true in production.
+   */
+  readonly trustedVerifier: (receipt: VariantKillEvidenceReceipt) => boolean;
 }
 
 export interface CoverageStageResult {

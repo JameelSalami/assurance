@@ -40,3 +40,18 @@ project-owned IR / implementation
 ```
 
 Assurance depends on Contract for canonical identity. Contract does not depend on Assurance.
+
+
+## G-VARIANT external-trust boundary
+
+A variant campaign describes claimed outcomes; it cannot independently prove
+that tests executed. A passing G-VARIANT disposition now requires both (1) a
+killer ID frozen from the law's declared verification suites in the
+VariantPlan and (2) an exact \`assurance.variant-kill-evidence/v1\` receipt for
+each claimed killer, accepted by the caller's independently implemented
+\`trustedVerifier\`. Missing receipts or no verifier block acceptance.
+The callback must check externally retained test inventory, runner output and
+provenance, not merely match user-supplied hashes. These receipts do not carry
+signatures, and caller callbacks are not treated as trustworthy by default.
+
+This remains a **gate**, not a mutation runner or identity authority.

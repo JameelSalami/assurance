@@ -22,6 +22,8 @@ export type {
   SourceRef,
   StageBinding,
   VariantCampaignResult,
+  VariantEvidenceVerification,
+  VariantKillEvidenceReceipt,
   VariantDescriptor,
   VariantDisposition,
   VariantPlan,
