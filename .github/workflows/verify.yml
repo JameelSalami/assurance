@@ -25,3 +25,25 @@ jobs:
         run: npm run verify
       - name: Pack and verify unrelated two-tarball consumer
         run: npm run verify:install
+
+
+  stryker-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            examples/stryker-gate/package-lock.json
+      - name: Build independent Assurance from pinned Contract tarball
+        run: |
+          npm ci --ignore-scripts
+          npm run build
+      - name: Install pinned Stryker mutation runner
+        run: npm ci --prefix examples/stryker-gate --no-audit --no-fund
+      - name: Run real Stryker and require Assurance G-VARIANT pass
+        run: npm run qualify --prefix examples/stryker-gate

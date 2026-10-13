@@ -185,3 +185,24 @@ copy of Contract in its npm tarball. The source checkout retains an
 integrity-pinned development bootstrap archive until Contract is published.
 The upstream source rights and any required notice retention have not been
 independently cleared by these informational references.
+
+## Real Stryker mutation testing integration
+
+The optional `bridgeStrykerReport` converts a real StrykerJS **JSON
+report** into a frozen Assurance variant campaign and verified-execution
+receipt references. Every reported mutant must be mapped to the declared
+variant plan—surviving mutants cannot be silently cherry-picked away.
+All `killedBy` IDs must exist in the report's test inventory and the frozen
+allowed suites. Unknown, stale, partial or unrecognized reports fail closed.
+
+Run [the Stryker end-to-end example](examples/stryker-gate/README.md)
+on Node 22 or later. Its 6 real Stryker mutants are all caught after
+the example adds the previously missing threshold-edge test.
+
+`VerifiedStrykerRun.verifyReportOrigin` is a required **host-owned
+trust callback**. Report SHA-256, mutant names and Stryker's own
+`status: "Killed"` are not authenticated evidence by themselves. The
+demo witnesses a direct local Stryker subprocess and validates its exact
+report/candidate/runner identity, which is not equivalent to signed remote
+CI provenance. Production deployments must independently verify trusted
+runner and candidate identities and test inventory.

@@ -1,0 +1,14 @@
+{
+  "name": "assurance-stryker-gate-example",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "mutate": "stryker run",
+    "qualify": "node run.mjs"
+  },
+  "devDependencies": {
+    "@stryker-mutator/core": "10.0.0"
+  }
+}

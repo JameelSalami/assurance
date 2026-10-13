@@ -36,3 +36,5 @@ export type {
 } from "./definition.js";
 export { qualifyExtension } from "./extension.js";
 export type { ExtensionCheckReceipt, ExtensionQualification } from "./extension.js";
+export { bridgeStrykerReport } from "./stryker.js";
+export type { VerifiedStrykerRun, StrykerBridgeResult } from "./stryker.js";
