@@ -1,0 +1,54 @@
+{
+  "name": "@durable-systems/assurance",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "description": "Domain-neutral executable assurance gates over project-owned contracts, laws, fault models, variants, and verification coverage",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jameelsalami/assurance.git"
+  },
+  "homepage": "https://github.com/jameelsalami/assurance#readme",
+  "bugs": {
+    "url": "https://github.com/jameelsalami/assurance/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "ASSURANCE.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "build": "npm run clean && tsc -p tsconfig.json",
+    "test": "node --import tsx --test test/*.test.ts",
+    "verify": "npm run typecheck && npm test && npm run build",
+    "prepack": "npm run verify",
+    "verify:install": "node scripts/verify-install.mjs"
+  },
+  "engines": {
+    "node": ">=20.19.0",
+    "npm": ">=10"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "@durable-systems/contract": "0.1.0"
+  },
+  "peerDependencies": {
+    "@durable-systems/contract": "0.1.0"
+  }
+}

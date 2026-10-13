@@ -1,0 +1,23 @@
+name: Verify independent Assurance package
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Clean install without sibling Contract checkout
+        run: npm ci --ignore-scripts
+      - name: Typecheck, test, build
+        run: npm run verify
+      - name: Pack and verify unrelated two-tarball consumer
+        run: npm run verify:install
